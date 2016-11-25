@@ -149,7 +149,7 @@ class stockAnalysis:
         self.__memcur.execute(sql)
         format_head = '|{code:^8s}|{start:^7s}|{end:^7s}|{sy:^7s}|'
         formatstr = '|{code:<8s}|{start:<7.2f}|{end:<7.2f}|{sy:<7.4f}|'
-        os.system("cls")
+        # os.system("cls")
         print "{name:-^34s}".format(name='')
         print format_head.format(code='CODE', start='START', end='END', sy='SY')
 
