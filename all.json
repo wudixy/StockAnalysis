@@ -1,6 +1,11 @@
 {
   "MODEL":"ALL",
   "STARTDT":"2016-11-14",
+  "EXPORTINFO":{
+            "TYPE":"ORACLE",
+            "TNS":"MY-DEV-203.2-TEST",
+            "USER":"test",
+            "PWD" :"test"},
   "CODELIST":["000001",
               "000002",
               "000004",

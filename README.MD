@@ -12,6 +12,11 @@
     - 正常数据格式为:
 `Date,Open,High,Low,Close,Volume`
 
+### V1.0.2
+更新时间2016年11月28日，更新内容：
+1. 增添直接从sqlite3 db初始化数据功能
+2. 增添导出为csv功能
+3. 增添导出到ORACLE TABLE功能
 
 ##使用指南
 

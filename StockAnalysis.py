@@ -9,10 +9,10 @@ Notes:
 '''
 
 
-# @Date    : 2016-11-07 23:35:18
+# @Date    : 2016-11-28 23:35:18
 # @Author  : wudi (wudi@xiyuetech.com)
 # @Link    : https://github.com/wudixy/StockAnalysis
-# @Version : 1.0.1
+# @Version : 1.0.2
 
 import urllib
 import sys
@@ -243,7 +243,7 @@ class stockAnalysis:
         s = eval(s)
         return s
 
-    def custAnalyBySQL(sef, sql):
+    def custAnalyBySQL(self, sql):
         try:
             self.__memcur.executescript(sql)
         except Exception as e:
@@ -253,8 +253,92 @@ class stockAnalysis:
         finally:
             pass
 
+    def export2Oracle(self):
+        if 'EXPORTINFO' in self.tconfig.keys():
+            try:
+                import cx_Oracle
+            except Exception, e:
+                print str(e)
+                return -1
 
-CMD_LIST = ['-download', '-initanaly', '-analyze', '-export', '-help']
+            try:
+                db = cx_Oracle.connect(self.tconfig['EXPORTINFO']['USER'],
+                                       self.tconfig['EXPORTINFO']['PWD'],
+                                       self.tconfig['EXPORTINFO']['TNS'])
+            except Exception, e:
+                print str(e)
+                return -1
+
+            cur = db.cursor()
+
+            sql = "drop table STOCKBASEDATA"
+            try:
+                cur.execute(sql)
+            except Exception, e:
+                pass
+
+            sql = "CREATE TABLE STOCKBASEDATA(cd VARCHAR2(10),dt VARCHAR2(10),\
+                   op NUMBER(18,2),hi NUMBER(18,2),lw NUMBER(18,2),\
+                   cl NUMBER(18,2),VOLUME NUMBER(18,2))"
+            try:
+                cur.execute(sql)
+            except Exception as e:
+                print str(e)
+                return -1
+
+            sql3 = 'select Code,Date,Open,High,Low,Close,Volume from %s_model' % (self.tconfig['MODEL'],)
+            self.__memcur.execute(sql3)
+            alldt = self.__memcur.fetchall()
+            ct = 0
+            for dt in alldt:
+                isql = "insert into STOCKBASEDATA values('%s','%s',%.2f,%.2f,%.2f,%.2f,%.2f)" % \
+                    (dt[0], dt[1], dt[2], dt[3], dt[4], dt[5], dt[6])
+
+                cur.execute(isql)
+                ct = ct + 1
+                if ct == 5000:
+                    db.commit()
+                    ct = 0
+            db.commit()
+        else:
+            print 'pls config EXPORTINFO IN CONFIGFILE'
+
+    def export2csv(self):
+        sql3 = 'select Code,Date,Open,High,Low,Close,Volume from %s_model' % (self.tconfig['MODEL'],)
+        self.__memcur.execute(sql3)
+        alldt = self.__memcur.fetchall()
+        f = open(self.__basepath + file_Separator + self.tconfig['MODEL'] + '.csv', 'w')
+        # f.writelines(alldt)
+        for dt in alldt:
+            isql = '%s,%s,%.2f,%.2f,%.2f,%.2f,%.2f,' % \
+                   (dt[0], dt[1], dt[2], dt[3], dt[4], dt[5], dt[6])
+            f.writelines(isql + '\n')
+        f.close()
+
+    def initBysql3file(self, fname):
+        if os.path.exists(fname):
+            fconn = sqlite3.connect(fname)
+            # 生成文件数据库脚本
+            str_buffer = StringIO.StringIO()
+            # con.itrdump() dump all sqls
+            for line in fconn.iterdump():
+                str_buffer.write('%s\n' % line)
+
+            sql = "drop table %s_model;\
+                   drop table ANALYZE_BASE" % (self.tconfig['MODEL'],)
+            self.__memcur.executescript(sql)
+
+            # 执行内存数据库脚本
+            self.__memcur.executescript(str_buffer.getvalue())
+            # 关闭文件数据库
+            fconn.close()
+        else:
+            print 'file not found'
+
+
+CMD_LIST = ['-download', '-initanaly', '-analyze',
+            '-export', '-export2oracle', '-help',
+            '-initwithdbfile', '-export2csv']
 
 
 def printhelp():
@@ -293,6 +377,13 @@ def main():
                 ci = sa.getCompositeIncome()
                 print 'Composite Income is %.4f' % (ci,)
                 sa.getTopN()
+            elif parmas == '-export2oracle':
+                sa.export2Oracle()
+            elif parmas == '-initwithdbfile':
+                dfile = raw_input('pls input dbfile name' + '\n')
+                sa.initBysql3file(dfile)
+            elif parmas == '-export2csv':
+                sa.export2csv()
     else:
         print 'configfile %s is not found' % (parmas,)
 
