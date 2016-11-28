@@ -10,7 +10,8 @@
     - 必须可以通过逗号解析为list
     - list长度至少为6
     - 正常数据格式为:
-```Date,Open,High,Low,Close,Volume```
+`Date,Open,High,Low,Close,Volume`
+
 
 ##使用指南
 
