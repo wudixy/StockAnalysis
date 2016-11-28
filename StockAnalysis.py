@@ -1,5 +1,19 @@
 #-*- coding: utf-8 -*-
 
+'''A股数据下载和分析
+Notes:
+
+1.程序所在目录不能包含中文
+2.目前程序仅在windows测试，如迁移至linux，可能需要完善其中涉及路径的代码
+
+'''
+
+
+# @Date    : 2016-11-07 23:35:18
+# @Author  : wudi (wudi@xiyuetech.com)
+# @Link    : https://github.com/wudixy/StockAnalysis
+# @Version : 1.0.1
+
 import urllib
 import sys
 import os
@@ -8,6 +22,7 @@ import sqlite3
 import platform
 import string
 import StringIO
+import urllib2
 
 sysstr = platform.system()
 if(sysstr == "Windows"):
@@ -74,7 +89,27 @@ class stockAnalysis:
     def downHistory2File(self, code):
         dinfo = self.__getUrl(code)
         fname = self.__datapath + file_Separator + dinfo['filename']
-        urllib.urlretrieve(dinfo['url'], fname)
+        # urllib.urlretrieve(dinfo['url'], fname)
+        req_header = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+                      'Accept': 'text/html;q=0.9,*/*;q=0.8',
+                      'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+                      'Connection': 'close',
+                      'Referer': None}
+        req_timeout = 5
+        i = 0
+
+        while i < 3:
+            try:
+                req = urllib2.Request(dinfo['url'], None, req_header)
+                f = urllib2.urlopen(req, None, req_timeout)
+                data = f.read()
+                with open(fname, "wb") as code:
+                    code.write(data)
+                break
+            except Exception, e:
+                i = i + 1
+                print str(e) + 'retry:' + str(i)
+                continue
 
     def downAllHisDt(self):
         i = 0
@@ -87,23 +122,25 @@ class stockAnalysis:
 
     def writeDT2MemDB(self, code):
         fname = self.__datapath + file_Separator + str(code) + '.txt'
-
         f = open(fname)
-        line = f.readline()
-        if line[:4] != 'Date':
-            return 0
-        line = f.readline()
         ct = 0
+        line = f.readline()
         while line:
             ld = line.split(',')
-            if not ld:
-                continue
-            sql = "insert into %s_model(Code,Date,Open,High,Low,Close,Volume) \
-                   values('%s','%s',%.2f,%.2f,%.2f,%.2f,%.2f)" % \
-                (self.tconfig['MODEL'], str(code), ld[0][:10], string.atof(ld[1]), string.atof(ld[2]),
-                 string.atof(ld[3]), string.atof(ld[4]), string.atof(ld[5]))
-            self.__memcur.execute(sql)
-            ct = ct + 1
+            # 检查格式
+            # 不为空,是列表，长度至少是6
+            if ld and isinstance(ld, list) and len(ld) >= 6:
+                try:
+                    sql = "insert into %s_model(Code,Date,Open,High,Low,Close,Volume) \
+                           values('%s','%s',%.2f,%.2f,%.2f,%.2f,%.2f)" % \
+                        (self.tconfig['MODEL'], str(code), ld[0][:10], string.atof(ld[1]), string.atof(ld[2]),
+                            string.atof(ld[3]), string.atof(ld[4]), string.atof(ld[5]))
+                    self.__memcur.execute(sql)
+                    # print str(code) + str(ct)
+
+                    ct = ct + 1
+                except Exception, e:
+                    print str(e)
             line = f.readline()
         f.close()
         self.__memconn.commit()
@@ -113,8 +150,10 @@ class stockAnalysis:
         ct = 0
         for cd in self.tconfig['CODELIST']:
             fname = self.__datapath + file_Separator + str(cd) + '.txt'
+            print str(ct) + '-' + str(cd)
             if os.path.exists(fname):
                 ct = ct + self.writeDT2MemDB(cd)
+                print str(ct) + ':' + str(cd)
             else:
                 continue
         print 'insert %d data' % (ct,)
@@ -203,6 +242,16 @@ class stockAnalysis:
         # s = s.split(';')
         s = eval(s)
         return s
+
+    def custAnalyBySQL(sef, sql):
+        try:
+            self.__memcur.executescript(sql)
+        except Exception as e:
+            print str(e)
+        else:
+            pass
+        finally:
+            pass
 
 
 CMD_LIST = ['-download', '-initanaly', '-analyze', '-export', '-help']
